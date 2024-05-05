@@ -1,55 +1,62 @@
-import React, { useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { fetchContacts } from '../redux/operations';
-import { setFilter } from '../redux/filterSlice';
-import { addContact, deleteContact } from '../redux/operations';
-import {
-  selectVisibleContacts,
-  selectIsLoading,
-  selectFilter,
-  selectError,
-} from '../redux/selectors';
-import { ContactForm } from './ContactForm/ContactForm';
-import { Filter } from './Filter/Filter';
-import { ContactList } from './ContactList/ContactList';
+import React from 'react';
+import { Route, Routes, useNavigate } from 'react-router-dom';
+import { SharedLayout } from 'pages/SharedLayout';
+import { RegisterPage } from 'pages/RegisterPage';
+import { LoginPage } from 'pages/LoginPage';
+import { ContactsPage } from 'pages/ContactsPage';
+import { RestrictedRoute } from './RestrictedRoute/RestrictedRoute';
+import { PrivateRoute } from './PrivateRoute/PrivateRoute';
+import { HomePage } from 'pages/HomePage';
+import { useDispatch } from 'react-redux';
+import { useAuth } from '../redux/hooks/useAuth';
+import { useEffect } from 'react';
+import { refreshUser } from '../redux/auth/authOperations';
 
 export const App = () => {
-  const visibleContacts = useSelector(selectVisibleContacts);
-  const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectError);
-  const filter = useSelector(selectFilter);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const { isRefreshing } = useAuth();
 
   useEffect(() => {
-    dispatch(fetchContacts());
-  }, [dispatch]);
-  const handleAddContact = newContact => {
-    dispatch(addContact(newContact));
-  };
-  const handleDeleteContact = id => {
-    dispatch(deleteContact(id));
-  };
-  const handleSetFilter = newFilter => {
-    dispatch(setFilter(newFilter));
-  };
+    dispatch(refreshUser());
+    navigate('/contacts');
+  }, [dispatch, navigate]);
 
-  return (
-    <div>
-      <h1>Phonebook</h1>
-      <ContactForm addContact={handleAddContact} contacts={visibleContacts} />
-
-      <h2>Contacts</h2>
-      <Filter filter={filter} setFilter={handleSetFilter} />
-      {isLoading && (
-        <b style={{ display: 'block', padding: '0 0 20px 10px' }}>Loading...</b>
-      )}
-      {error && <b>Error: {error}</b>}
-      {visibleContacts && (
-        <ContactList
-          contacts={visibleContacts}
-          deleteContact={handleDeleteContact}
-        />
-      )}
-    </div>
+  return isRefreshing ? (
+    <h1>Refreshing user... Please wait...</h1>
+  ) : (
+    <>
+      <Routes>
+        <Route path="/" element={<SharedLayout />}>
+          <Route index element={<HomePage />} />
+          <Route
+            path="/register"
+            element={
+              <RestrictedRoute
+                component={RegisterPage}
+                redirectTo="/contacts"
+              />
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <RestrictedRoute component={LoginPage} redirectTo="/contacts" />
+            }
+          />
+          <Route
+            path="/contacts"
+            element={
+              <PrivateRoute component={ContactsPage} redirectTo="/login" />
+            }
+          />
+          <Route
+            path="/logout"
+            element={<PrivateRoute component={HomePage} redirectTo="/" />}
+          />
+        </Route>
+      </Routes>
+    </>
   );
 };
